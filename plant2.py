@@ -2,67 +2,45 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-st.set_page_config(page_title="Crop Production by Region and Year", layout="wide")
-st.title("🌾 Crop Production by Region and Year")
+# 파일 경로
+csv_file = "식량작물_생산량_정곡__20250725135134.csv"
 
-uploaded_file = st.file_uploader("📁 Upload CSV File", type=["csv"])
+# CSV 파일 불러오기
+@st.cache_data
+def load_data(file_path):
+    df = pd.read_csv(file_path)
+    df.columns = df.columns.str.strip()  # 열 이름 공백 제거
+    return df
 
-if uploaded_file:
-    df_raw = pd.read_csv(uploaded_file, encoding="utf-8")
+df = load_data(csv_file)
 
-    # Extract column headers and data
-    data = df_raw[1:].copy()
-    data.columns = df_raw.iloc[0]
-    data = data.rename(columns={data.columns[0]: "Region"})
+st.title("📊 식량작물 정곡 생산량 시각화")
+st.markdown("업로드된 데이터를 기반으로 작물별 생산량을 시각화합니다.")
 
-    # Select only production columns (those ending in .1)
-    prod_cols = [col for col in data.columns if str(col).endswith(".1")]
-    years = [col.split(".")[0] for col in prod_cols]  # e.g. "1998"
+# 데이터 미리보기
+st.subheader("데이터 미리보기")
+st.dataframe(df.head())
 
-    # Reformat data for plotting
-    all_data = []
+# 필요한 열 자동 탐색
+numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
+category_cols = df.select_dtypes(include=['object']).columns.tolist()
 
-    for year, col in zip(years, prod_cols):
-        if col in data.columns:
-            temp = data[["Region", col]].copy()
-            temp.columns = ["Region", "Production"]
-            temp["Year"] = year
-            all_data.append(temp)
+# 열 확인
+st.sidebar.subheader("설정")
+year_col = st.sidebar.selectbox("연도(Year) 열 선택", category_cols)
+crop_col = st.sidebar.selectbox("작물(Crop) 열 선택", category_cols)
+value_col = st.sidebar.selectbox("생산량(Value) 열 선택", numeric_cols)
 
-    if all_data:
-        df_plot = pd.concat(all_data, ignore_index=True)
-    else:
-        st.error("❌ No production columns found.")
-        st.stop()
+# 작물 선택
+available_crops = df[crop_col].unique().tolist()
+selected_crops = st.multiselect("시각화할 작물을 선택하세요", available_crops, default=available_crops[:3])
 
-    # Convert to numeric
-    df_plot["Production"] = pd.to_numeric(df_plot["Production"].astype(str).str.replace(",", ""), errors="coerce")
-    df_plot.dropna(subset=["Production"], inplace=True)
-    df_plot["Year"] = df_plot["Year"].astype(str)
+# 필터링
+filtered_df = df[df[crop_col].isin(selected_crops)]
 
-    # Plotly bar chart
-    st.subheader("📊 Production by Region and Year")
-    fig = px.bar(
-        df_plot,
-        x="Year",
-        y="Production",
-        color="Region",
-        barmode="group",
-        title="Rice Production by Region Over Time",
-        labels={"Year": "Year", "Production": "Production (tons)", "Region": "Region"},
-    )
-    fig.update_layout(
-        xaxis=dict(type="category"),
-        yaxis_title="Production (tons)",
-        hovermode="x unified",
-        xaxis_rangeslider=dict(visible=True)
-    )
+# 시각화
+fig = px.line(filtered_df, x=year_col, y=value_col, color=crop_col,
+              labels={year_col: "연도", value_col: "생산량", crop_col: "작물"},
+              title="연도별 작물 생산량 추이")
 
-    st.plotly_chart(fig, use_container_width=True)
-
-    # Optional: show preview
-    with st.expander("📄 Preview Data"):
-        st.dataframe(df_plot.head(20))
-
-else:
-    st.info("👆 Please upload a CSV file.")
+st.plotly_chart(fig, use_container_width=True)
