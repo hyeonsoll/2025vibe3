@@ -18,7 +18,7 @@ df = load_data()
 st.title("🌾 미곡 생산량 시도별 변화")
 st.markdown("CSV 파일을 연도별로 변환하여 시도별 생산량 추이를 시각화합니다.")
 
-# 연도 범위 선택
+# 연도 슬라이더
 min_year = int(df["연도"].min())
 max_year = int(df["연도"].max())
 
@@ -29,8 +29,20 @@ selected_years = st.slider(
     value=(min_year, max_year)
 )
 
+# 시도 멀티셀렉트 필터
+all_regions = sorted(df["시도별"].unique())
+selected_regions = st.multiselect(
+    "📍 시도 선택:",
+    options=all_regions,
+    default=all_regions  # 기본값은 전체 선택
+)
+
 # 필터링
-filtered_df = df[(df["연도"] >= selected_years[0]) & (df["연도"] <= selected_years[1])]
+filtered_df = df[
+    (df["연도"] >= selected_years[0]) &
+    (df["연도"] <= selected_years[1]) &
+    (df["시도별"].isin(selected_regions))
+]
 
 # 시각화
 if not filtered_df.empty:
@@ -47,6 +59,6 @@ if not filtered_df.empty:
 else:
     st.warning("해당 조건에 맞는 데이터가 없습니다.")
 
-# 원본 데이터 보기
+# 데이터 보기
 with st.expander("📋 데이터 보기"):
     st.dataframe(filtered_df)
