@@ -31,7 +31,7 @@ if uploaded_file:
         df_plot = pd.concat([df_plot, df_temp], ignore_index=True)
 
     # 숫자 변환
-    df_plot["생산량"] = pd.to_numeric(df_plot["생산량"], errors="coerce")
+    df_plot["make"] = pd.to_numeric(df_plot["make"], errors="coerce")
     df_plot = df_plot.dropna()
 
     # 시각화
@@ -39,7 +39,7 @@ if uploaded_file:
     fig = px.bar(
         df_plot,
         x="연도",
-        y="생산량",
+        y="make",
         color="지역",
         barmode="group",
         title="연도별 지역 생산량 (미곡:생산량)",
