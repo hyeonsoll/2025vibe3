@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
+import plotly.express as px
 
 # 제목
 st.title("📊 지역별 연도별 식량작물 생산량 시각화")
@@ -13,13 +13,12 @@ def load_data():
 
 df = load_data()
 
-# 열 이름 확인
-st.write("데이터 샘플")
+# 데이터 샘플 보기
+st.subheader("🔍 데이터 미리보기")
 st.dataframe(df.head())
 
-# 필요한 열 자동 필터링 (예: 지역, 연도, 생산량이 포함된 열 찾기)
+# 자동으로 컬럼명 탐색
 try:
-    # '지역' 또는 '시도' 같은 지역 컬럼 탐색
     region_col = next(col for col in df.columns if '지역' in col or '시도' in col)
     year_col = next(col for col in df.columns if '연도' in col or '년도' in col)
     amount_col = next(col for col in df.columns if '생산량' in col or '생산' in col)
@@ -28,23 +27,24 @@ except StopIteration:
     st.stop()
 
 # 지역 선택
-regions = df[region_col].unique()
-selected_region = st.selectbox("지역을 선택하세요", regions)
+regions = df[region_col].dropna().unique()
+selected_region = st.selectbox("지역을 선택하세요", sorted(regions))
 
-# 선택된 지역 데이터 필터링
+# 선택된 지역 필터링
 df_filtered = df[df[region_col] == selected_region]
 
-# 연도 순으로 정렬
+# 생산량 숫자형으로 변환
+df_filtered[amount_col] = pd.to_numeric(df_filtered[amount_col], errors='coerce')
 df_filtered = df_filtered.sort_values(by=year_col)
 
-# 생산량이 숫자형인지 확인
-df_filtered[amount_col] = pd.to_numeric(df_filtered[amount_col], errors='coerce')
+# Plotly 그래프
+fig = px.bar(
+    df_filtered,
+    x=year_col,
+    y=amount_col,
+    title=f"{selected_region}의 연도별 생산량",
+    labels={year_col: "연도", amount_col: "생산량 (톤)"},
+    color_discrete_sequence=['#66c2a5']
+)
 
-# 그래프 그리기
-fig, ax = plt.subplots(figsize=(10, 5))
-ax.bar(df_filtered[year_col].astype(str), df_filtered[amount_col], color='skyblue')
-ax.set_title(f"{selected_region} 연도별 생산량")
-ax.set_xlabel("연도")
-ax.set_ylabel("생산량 (톤)")
-plt.xticks(rotation=45)
-st.pyplot(fig)
+st.plotly_chart(fig)
