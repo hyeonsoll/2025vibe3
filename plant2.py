@@ -1,43 +1,42 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import matplotlib.pyplot as plt
 
-st.title("📊 시도별 연도별 식량작물 생산량 시각화")
+# 제목
+st.title("📊 시도별 식량작물 생산량 시각화")
 
-@st.cache_data
-def load_data():
-    return pd.read_csv("식량작물_생산량_정곡__20250725135134.csv", encoding='utf-8')
+# CSV 파일 업로드
+uploaded_file = st.file_uploader("CSV 파일을 업로드하세요.", type=["csv"])
 
-df = load_data()
+if uploaded_file is not None:
+    # 데이터 읽기
+    df = pd.read_csv(uploaded_file)
 
-# 열 이름 정의 (사용자 요청에 따라 변경)
-region_col = "시도별"
-year_col = "시점"
-amount_col = "곡물 생산량(톤)"  # 실제 열 이름이 다를 경우 수정 필요
+    # 열 이름 확인 및 표준화 (한글 열이 문제가 될 수 있어서 영어로 정리)
+    df.columns = [col.strip() for col in df.columns]
 
-# 데이터 미리보기
-st.subheader("📋 데이터 미리보기")
-st.dataframe(df.head())
+    # '시도', '연도', '생산량' 열이 있는지 확인
+    required_columns = ["시도", "연도", "생산량"]
+    if all(col in df.columns for col in required_columns):
+        # 시도 선택
+        selected_region = st.selectbox("시도를 선택하세요:", df["시도"].unique())
 
-# 시도별 선택
-regions = df[region_col].dropna().unique()
-selected_region = st.selectbox("시도(지역)을 선택하세요", sorted(regions))
+        # 선택한 시도의 데이터 필터링
+        df_region = df[df["시도"] == selected_region]
 
-# 선택된 시도 데이터 필터링
-df_filtered = df[df[region_col] == selected_region]
+        # 연도 순으로 정렬
+        df_region = df_region.sort_values(by="연도")
 
-# 생산량 숫자형으로 변환
-df_filtered[amount_col] = pd.to_numeric(df_filtered[amount_col], errors='coerce')
-df_filtered = df_filtered.sort_values(by=year_col)
+        # 생산량 숫자형 변환
+        df_region["생산량"] = pd.to_numeric(df_region["생산량"], errors="coerce")
 
-# 그래프 그리기 (Plotly 사용)
-fig = px.bar(
-    df_filtered,
-    x=year_col,
-    y=amount_col,
-    title=f"{selected_region}의 연도별 생산량",
-    labels={year_col: "연도", amount_col: "생산량 (톤)"},
-    color_discrete_sequence=['#80b1d3']
-)
+        # 그래프 출력
+        fig, ax = plt.subplots()
+        ax.bar(df_region["연도"], df_region["생산량"], color='skyblue')
+        ax.set_title(f"{selected_region}의 연도별 식량작물 생산량")
+        ax.set_xlabel("연도")
+        ax.set_ylabel("생산량 (톤)")
+        st.pyplot(fig)
 
-st.plotly_chart(fig)
+    else:
+        st.error("⚠️ '시도', '연도', '생산량' 열이 데이터에 포함되어 있어야 합니다.")
