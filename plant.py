@@ -52,8 +52,29 @@ if uploaded_file:
     )
     st.plotly_chart(fig_compare, use_container_width=True)
 
-    # -----------------------------------
-    # 2. 기존 지역 1개 선택의 연도별 꺾은선 그래프 (선택)
-    # -----------------------------------
-    st.subheader("📈 특정 지역의 연도별 항목 변화 추이")
-    region_for_time = st.selectbox("📍 연도별 추이를 볼 지역 선택", available_re_
+# -----------------------------------
+# 2. 기존 지역 1개 선택의 연도별 꺾은선 그래프 (선택)
+# -----------------------------------
+st.subheader("📈 특정 지역의 연도별 항목 변화 추이")
+region_for_time = st.selectbox("📍 연도별 추이를 볼 지역 선택", available_regions)
+df_time = df[df["지역"] == region_for_time]
+
+# 연도형 항목 추출
+year_df = df_time.melt(id_vars="지역", var_name="항목", value_name="값")
+year_df["연도"] = year_df["항목"].str.extract(r'(20[0-9]{2}(?:\.[0-9]+)?)')
+year_df["항목명"] = year_df["항목"].str.extract(r':(.+)')
+year_df = year_df.dropna(subset=["연도", "항목명"])
+year_df["값"] = pd.to_numeric(year_df["값"], errors="coerce")
+
+# 선택 항목 필터
+year_df = year_df[year_df["항목"].isin(selected_items)]
+
+fig_time = px.line(
+    year_df,
+    x="연도",
+    y="값",
+    color="항목명",
+    markers=True,
+    title=f"{region_for_time} - 연도별 항목 변화 추이"
+)
+st.plotly_chart(fig_time, use_container_width=True)
