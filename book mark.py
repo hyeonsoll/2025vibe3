@@ -29,7 +29,11 @@ def geocode(address):
     else:
         return None, None
 
-# 기본 설정
+# --- 세션 상태 초기화 ---
+if "selected_bookmark_index" not in st.session_state:
+    st.session_state.selected_bookmark_index = None
+
+# --- 앱 기본 UI 설정 ---
 st.set_page_config(layout="wide")
 st.title("📍 나만의 북마크 지도")
 
@@ -38,10 +42,9 @@ bookmarks = load_bookmarks()
 
 # --- 사이드바: 북마크 목록 ---
 st.sidebar.header("📌 저장된 북마크")
-selected_bookmark = None
 for i, bm in enumerate(bookmarks):
-    if st.sidebar.button(f"{bm['name']}"):
-        selected_bookmark = bm
+    if st.sidebar.button(f"{bm['name']}", key=f"bookmark_{i}"):
+        st.session_state.selected_bookmark_index = i
 
 st.sidebar.markdown("---")
 st.sidebar.header("➕ 새 북마크 추가")
@@ -62,22 +65,25 @@ with st.sidebar.form("add_bookmark"):
             })
             save_bookmarks(bookmarks)
             st.success(f"✅ '{new_name}' 북마크가 저장되었습니다.")
+            # 새 북마크 선택 상태로 전환
+            st.session_state.selected_bookmark_index = len(bookmarks) - 1
             st.experimental_rerun()
         else:
             st.error("❌ 주소를 찾을 수 없습니다. 다시 입력해주세요.")
 
-# --- 지도 생성 ---
-if selected_bookmark:
-    map_center = [selected_bookmark["lat"], selected_bookmark["lon"]]
+# --- 지도 위치 설정 ---
+if st.session_state.selected_bookmark_index is not None:
+    selected = bookmarks[st.session_state.selected_bookmark_index]
+    map_center = [selected["lat"], selected["lon"]]
     zoom = 16
 else:
-    # 기본 위치: 서울시청
-    map_center = [37.5665, 126.9780]
+    map_center = [37.5665, 126.9780]  # 서울 기본 위치
     zoom = 12
 
+# --- 지도 생성 ---
 m = folium.Map(location=map_center, zoom_start=zoom)
 
-# 모든 북마크 마커로 표시
+# 북마크 마커 표시
 for bm in bookmarks:
     folium.Marker(
         location=[bm["lat"], bm["lon"]],
@@ -86,5 +92,5 @@ for bm in bookmarks:
         icon=folium.Icon(color="blue", icon="bookmark")
     ).add_to(m)
 
-# --- 지도 표시 ---
+# --- 지도 렌더링 ---
 st_data = st_folium(m, width=1000, height=600)
